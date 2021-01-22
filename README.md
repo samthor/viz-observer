@@ -3,7 +3,9 @@ This is an ES Module which exports the default method `vizObserver`.
 It notifies you when an element is resized or moved on a page, including when it appears or disappears (similar to but _not quite_ being added/removed from the DOM).
 See [this post](https://whistlr.info/2021/observing-dom/) for an explanation, or see this animation:
 
-<img src="https://storage.googleapis.com/hwhistlr.appspot.com/assets/node-io-hack.webp" />
+<div style="text-align: center">
+  <img src="https://storage.googleapis.com/hwhistlr.appspot.com/assets/node-io-hack.webp" />
+</div>
 
 ## Usage
 
