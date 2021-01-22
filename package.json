@@ -1,0 +1,18 @@
+{
+  "devDependencies": {
+    "@types/resize-observer-browser": "^0.1.5"
+  },
+  "name": "viz-observer",
+  "types": "./types/index.d.ts",
+  "type": "module",
+  "main": "./index.js",
+  "version": "1.0.0",
+  "repository": "git@github.com:samthor/viz-observer.git",
+  "description": "Notifies your code on DOM node move or resize",
+  "keywords": [
+    "javascript",
+    "dom"
+  ],
+  "author": "Sam Thorogood <sam.thorogood@gmail.com>",
+  "license": "Apache-2.0"
+}
