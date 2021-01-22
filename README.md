@@ -32,6 +32,14 @@ vizObserver(yourElement, yourCallback, {signal: ac.signal});
 ac.abort();
 ```
 
+## Requirements
+
+This requires `IntersectionObserver`, which [is pretty widely supported](https://caniuse.com/intersectionobserver).
+
+It works without `ResizeObserver` in a slightly crippled mode _just_ to support Safari 12.x, as it was the only browser to introduce `InteresectionObserver` _before_ `ResizeObserve`.
+It won't report elements shrinking—only elements growing, moving or being removed from the page.
+
 ## Notes
 
-This works inside Shadow DOM.
+This works totally fine inside Shadow DOM.
+It's how the author uses it: I report the location of interesting elements and "attach" unrelated elemnents to them, such as for a popup or tooltip.
