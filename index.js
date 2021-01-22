@@ -8,7 +8,7 @@
  * It also works with target nodes inside Shadow DOM.
  */
 
-const debug = true;
+const debug = false;
 const root = document.documentElement;
 
 import * as types from './types/index.js';
@@ -149,7 +149,16 @@ export default function vizObserver(element, callback, options) {
     ro.observe(element);
   }
 
-  return () => {
+  const signal = options && options.signal || null;
+
+  let released = false;
+  const abort = () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    signal && signal.removeEventListener('abort', abort);
+
     ro && ro.disconnect();
     io && io.disconnect();
     activeObservers.delete(refresh);
@@ -158,4 +167,7 @@ export default function vizObserver(element, callback, options) {
       controlGlobalResize(false);
     }
   };
+
+  signal && signal.addEventListener('abort', abort);
+  return abort;
 }
