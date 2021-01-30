@@ -1,7 +1,7 @@
 
 This is an ES Module which exports the default method `vizObserver`.
 It notifies you when an element is resized or moved on a page, including when it appears or disappears (similar to but _not quite_ being added/removed from the DOM).
-See [this post](https://whistlr.info/2021/observing-dom/) for an explanation, or see this animation:
+See [this post](https://whistlr.info/2021/observing-dom/) for an explanation, or watch the animation:
 
 <div style="text-align: center">
   <img src="https://storage.googleapis.com/hwhistlr.appspot.com/assets/node-io-hack.webp" />
@@ -39,7 +39,8 @@ ac.abort();
 This requires `IntersectionObserver`, which [is pretty widely supported](https://caniuse.com/intersectionobserver).
 It also requires `ResizeObserver` but this was released before `IntersectionObserver` in all browsers bar one.
 
-For Safari 12.x, which was the only browser to introduce `IntersectionObserver` _before_ `ResizeObserver`, it supports working in a slightly restricted mode: it won't report elements shrinking, only growing, moving or being removed from the page.
+For Safari 12.x, which was the only browser to introduce `IntersectionObserver` _before_ `ResizeObserver`, it supports working in a slightly restricted mode: it won't report elements shrinking.
+It'll only report elements when they grow, move or are removed/added from the page.
 
 ## Notes
 
