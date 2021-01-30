@@ -22,8 +22,8 @@ const cleanup = vizObserver(yourElement, (rect) => {
 cleanup();
 ```
 
-This returns a cleanup method which you _must_ call when done.
-You can pass an `AbortSignal` as `{signal}` in the third argument:
+This returns a cleanup method which you _must_ call when done, otherwise you risk memory leaks.
+You can instead pass an `AbortSignal` as `{signal}` in the third argument:
 
 ```js
 const ac = new AbortController();
@@ -37,11 +37,11 @@ ac.abort();
 ## Requirements
 
 This requires `IntersectionObserver`, which [is pretty widely supported](https://caniuse.com/intersectionobserver).
+It also requires `ResizeObserver` but this was released before `IntersectionObserver` in all browsers bar one.
 
-It works without `ResizeObserver` in a slightly crippled mode _just_ to support Safari 12.x, as it was the only browser to introduce `InteresectionObserver` _before_ `ResizeObserve`.
-It won't report elements shrinking—only elements growing, moving or being removed from the page.
+For Safari 12.x, which was the only browser to introduce `IntersectionObserver` _before_ `ResizeObserver`, it supports working in a slightly restricted mode: it won't report elements shrinking, only growing, moving or being removed from the page.
 
 ## Notes
 
 This works totally fine inside Shadow DOM.
-It's how the author uses it: I report the location of interesting elements and "attach" unrelated elemnents to them, such as for a popup or tooltip.
+It's how the author uses it: I report the location of interesting elements and "attach" unrelated elements to them, such as for a popup or tooltip.
