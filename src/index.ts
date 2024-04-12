@@ -23,7 +23,7 @@ export interface Options {
   signal?: AbortSignal;
 }
 
-const debug = false;
+// const debug = false;
 const root = document.documentElement;
 
 const handlers = new WeakMap<Element, () => void>();
