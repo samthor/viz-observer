@@ -5,7 +5,7 @@ export interface VisualObserverEntry {
 }
 
 export interface VisualObserverCallback {
-  (entries: VisualObserverEntry[], observer: VisualObserver): void;
+  (this: VisualObserver, entries: VisualObserverEntry[], observer: VisualObserver): void;
 }
 
 interface VisualObserverElement {
@@ -24,7 +24,7 @@ export class VisualObserver {
   #root = document.documentElement;
 
   constructor(callback: VisualObserverCallback) {
-    this.#callback = callback;
+    this.#callback = callback.bind(this);
   }
 
   #elements = new Map<Element, VisualObserverElement>();
@@ -32,17 +32,16 @@ export class VisualObserver {
   #resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
     const visualEntries: VisualObserverEntry[] = [];
 
-    for (const entry of entries) {
-      // TODO: Confirm that root is always the first entry.
-      if (entry.target === this.#root) {
-        // Any time the root element resizes we need to refresh all the observed elements.
-        // No need to flush the other resize entries since we are
-        this.#elements.forEach((el, target) => {
-          el.io?.disconnect();
-          visualEntries.push(this.#refreshElement(target));
-        });
-        break;
-      } else {
+    const root = entries.find((entry) => entry.target === this.#root);
+
+    // Any time the root element resizes we need to refresh all the observed elements.
+    if (root !== undefined) {
+      this.#elements.forEach((_, target) => {
+        visualEntries.push(this.#refreshElement(target));
+      });
+    } else {
+      for (const entry of entries) {
+        if (entry.target === this.#root) continue;
         visualEntries.push(this.#refreshElement(entry.target, entry.contentRect));
       }
     }
@@ -68,7 +67,10 @@ export class VisualObserver {
       // moves beneath _that_ new value, the user will get notified.
 
       if (el.isFirstUpdate) {
-        el.threshold = entry.intersectionRatio === 0.0 ? 0.0000001 : entry.intersectionRatio; // just needs to be non-zero
+        el.threshold =
+          entry.intersectionRatio === 0.0
+            ? 0.0000001 // just needs to be non-zero
+            : entry.intersectionRatio;
       }
 
       this.#callback([this.#refreshElement(entry.target, entry.boundingClientRect)], this);
@@ -83,14 +85,7 @@ export class VisualObserver {
   ): VisualObserverEntry {
     let el = this.#elements.get(target);
 
-    if (el === undefined) {
-      el = {
-        io: null,
-        threshold: 1,
-        isFirstUpdate: true,
-      };
-      this.#elements.set(target, el);
-    }
+    if (el === undefined) throw new Error('Cant refresh target with no record.');
 
     el.io?.disconnect();
 
@@ -134,7 +129,7 @@ export class VisualObserver {
         width: contentRect.width,
         height: contentRect.height,
       }),
-      isAppearing: false,
+      isAppearing: true,
     };
   }
 
@@ -147,12 +142,17 @@ export class VisualObserver {
   observe(target: Element): void {
     if (this.#elements.has(target)) return;
 
-    // It's important that we observer the root first, since it will always be the first entry.
     if (this.#elements.size === 0) {
       this.#resizeObserver.observe(this.#root);
     }
 
-    // The resize observer will be called immediately, so we don't have to call
+    this.#elements.set(target, {
+      io: null,
+      threshold: 1,
+      isFirstUpdate: true,
+    });
+
+    // The resize observer will be called immediately, so we don't have to manually refresh.
     this.#resizeObserver.observe(target);
   }
 

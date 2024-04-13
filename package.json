@@ -19,9 +19,12 @@
     "dom"
   ],
   "scripts": {
-    "build": "tsc"
+    "dev": "vite demo",
+    "build": "tsc",
+    "publish": "npm run build && npm publish"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vite": "^5.2.8"
   }
 }
