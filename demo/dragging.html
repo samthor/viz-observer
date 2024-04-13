@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viz Observer - Text</title>
+    <style>
+      html {
+        height: 100%;
+      }
+
+      body {
+        min-height: 100%;
+      }
+
+      draggable-box {
+        display: block;
+        width: 50px;
+        height: 50px;
+        border: 2px solid black;
+        position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <draggable-box id="box1"></draggable-box>
+
+    <script type="module">
+      import { VisualObserver } from '../src';
+
+      class DraggableBox extends HTMLElement {
+        constructor() {
+          super();
+
+          this.onMouseDrag = this.onMouseDrag.bind(this);
+
+          this.addEventListener('mousedown', () => {
+            window.addEventListener('mousemove', this.onMouseDrag);
+          });
+
+          window.addEventListener('mouseup', () => {
+            window.removeEventListener('mousemove', this.onMouseDrag);
+          });
+        }
+
+        onMouseDrag({ movementX, movementY }) {
+          const { left, top } = window.getComputedStyle(this);
+          let leftValue = parseInt(left);
+          let topValue = parseInt(top);
+          this.style.left = `${leftValue + movementX}px`;
+          this.style.top = `${topValue + movementY}px`;
+        }
+      }
+
+      customElements.define('draggable-box', DraggableBox);
+
+      const vo = new VisualObserver((entries) => {
+        console.log(entries);
+      });
+
+      document.querySelectorAll('draggable-box').forEach((el) => vo.observe(el));
+    </script>
+  </body>
+</html>
