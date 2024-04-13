@@ -23,13 +23,75 @@ export interface Options {
   signal?: AbortSignal;
 }
 
+export interface VisualObserverEntry {
+  target: Element;
+  contentRect: DOMRectReadOnly;
+  isAppearing: boolean;
+}
+
+export interface VisualObserverCallback {
+  (entries: VisualObserverEntry[], observer: VisualObserver): void;
+}
+
+interface VisualObserverElement {
+  intersectionObserver: IntersectionObserver;
+}
+
+/**
+ * Create an observer that notifies when an element resizes, moves, or is added/removed from the DOM.
+ */
+export class VisualObserver {
+  #callback: VisualObserverCallback;
+
+  constructor(callback: VisualObserverCallback) {
+    this.#callback = callback;
+  }
+
+  #elementCount = 0;
+  // Unsure whether to use a Map or WeakMap. Not using a weak map means we are prone to memory leaks, but it also means that we cant iterate and/or clear the map.
+  #elements = new WeakMap<Element, VisualObserverElement>();
+
+  #onResize = (entries: ResizeObserverEntry[]) => {};
+
+  #resizeObserver = new ResizeObserver(this.#onResize);
+
+  #onIntersection = (entries: IntersectionObserverEntry[]) => {};
+
+  get #root() {
+    return document.documentElement;
+  }
+
+  disconnect(): void {
+    this.#resizeObserver.disconnect();
+  }
+
+  observe(target: Element): void {
+    if (this.#elementCount === 0) {
+      this.#resizeObserver.observe(this.#root);
+    }
+    this.#elementCount += 1;
+    this.#elements.set(target, {
+      intersectionObserver: new IntersectionObserver(this.#onIntersection),
+    });
+  }
+
+  unobserve(target: Element): void {
+    if (this.#elementCount === 1) {
+      this.#resizeObserver.unobserve(this.#root);
+    }
+    this.#elementCount -= 1;
+    // Do we need to disconnect the IntersectionObserver or does that happen when it's garbage collected?
+    this.#elements.delete(target);
+  }
+}
+
+/* Old implementation */
 // const debug = false;
-const root = document.documentElement;
 
 const handlers = new WeakMap<Element, () => void>();
 
 const activeObservers = new Set<() => void>();
-handlers.set(root, () => activeObservers.forEach((handler) => handler()));
+handlers.set(document.documentElement, () => activeObservers.forEach((handler) => handler()));
 
 const ro = new ResizeObserver((entries) => {
   for (const entry of entries) {
@@ -37,14 +99,7 @@ const ro = new ResizeObserver((entries) => {
   }
 });
 
-/**
- * Sets up an observer that notifies on element resize or move.
- *
- * Returns a method to remove the observer (or accepts an AbortSignal). You should be sure to clean
- * up outstanding observers even if you otherwise discard the element, otherwise you could leak
- * memory.
- */
-export default function vizObserver(element: Element, callback: (rect: Rect) => void) {
+function vizObserver(element: Element, callback: (rect: Rect) => void) {
   let io: IntersectionObserver | null = null;
 
   // const viz = document.createElement('div');
@@ -52,7 +107,7 @@ export default function vizObserver(element: Element, callback: (rect: Rect) => 
   // debug && document.body.append(viz);
 
   const refresh = (threshold = 1.0) => {
-    io && io.disconnect();
+    io?.disconnect();
     io = null;
 
     const rect = element.getBoundingClientRect();
@@ -73,12 +128,11 @@ export default function vizObserver(element: Element, callback: (rect: Rect) => 
     });
 
     // Calculate the exact position this element holds on the page.
-    const x = (v: number) => Math.floor(v);
     const { offsetWidth: dw, offsetHeight: dh } = root;
-    const insetTop = x(top);
-    const insetLeft = x(left);
-    const insetRight = x(dw - (left + rect.width));
-    const insetBottom = x(dh - (top + rect.height));
+    const insetTop = Math.floor(top);
+    const insetLeft = Math.floor(left);
+    const insetRight = Math.floor(dw - (left + rect.width));
+    const insetBottom = Math.floor(dh - (top + rect.height));
     const rootMargin = `${-insetTop}px ${-insetRight}px ${-insetBottom}px ${-insetLeft}px`;
 
     const options = { root, rootMargin, threshold };
@@ -144,7 +198,7 @@ export default function vizObserver(element: Element, callback: (rect: Rect) => 
     released = true;
 
     ro.unobserve(element);
-    io && io.disconnect();
+    io?.disconnect();
     activeObservers.delete(refresh);
 
     if (activeObservers.size === 0) {

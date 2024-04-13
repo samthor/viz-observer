@@ -1,5 +1,4 @@
-
-import vizObserver from './index.js';
+import vizObserver from '../dist/index.js';
 
 // @ts-ignore
 const suite = window.suite;
@@ -8,19 +7,18 @@ const test = window.test;
 // @ts-ignore
 const assert = window.assert;
 
-  // called before any tests are run
-  const e = window.onerror;
-  window.onerror = function(err) {
-    console.warn('err', err);
-    if(err === 'ResizeObserver loop limit exceeded') {
-      console.warn('Ignored: ResizeObserver loop limit exceeded');
-      return false;
-    }
+// called before any tests are run
+const e = window.onerror;
+window.onerror = function (err) {
+  console.warn('err', err);
+  if (err === 'ResizeObserver loop limit exceeded') {
+    console.warn('Ignored: ResizeObserver loop limit exceeded');
+    return false;
   }
+};
 
 suite('move', () => {
   test('callback on element move', async () => {
-
     const node = document.createElement('div');
     node.style.height = '100px';
     node.style.width = '100px';
