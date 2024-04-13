@@ -33,15 +33,15 @@ export class VisualObserver {
     const visualEntries: VisualObserverEntry[] = [];
 
     for (const entry of entries) {
-      // TODO: What happens when the root and other elements resize at the same time?
+      // TODO: Confirm that root is always the first entry.
       if (entry.target === this.#root) {
         // Any time the root element resizes we need to refresh all the observed elements.
+        // No need to flush the other resize entries since we are
         this.#elements.forEach((el, target) => {
           el.io?.disconnect();
-          this.#refreshElement(target);
+          visualEntries.push(this.#refreshElement(target));
         });
-
-        return;
+        break;
       } else {
         visualEntries.push(this.#refreshElement(entry.target, entry.contentRect));
       }
@@ -50,6 +50,7 @@ export class VisualObserver {
     this.#callback(visualEntries, this);
   });
 
+  // We should be guaranteed that each `IntersectionObserver` only observes one element.
   #onIntersection = ([entry]: IntersectionObserverEntry[]) => {
     let el = this.#elements.get(entry.target);
 
