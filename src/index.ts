@@ -14,17 +14,18 @@ interface VisualObserverElement {
   isFirstUpdate: boolean;
 }
 
-// TODO: should we flush the entries every animation frame?
+const floor = Math.floor;
+
+const root = document.documentElement;
+
 /**
- * Create an observer that notifies when an element resizes, moves, or is added/removed from the DOM.
+ * Create an observer that notifies when an element is resized, moved, or added/removed from the DOM.
  */
 export class VisualObserver {
   #callback: VisualObserverCallback;
 
-  #root = document.documentElement;
-
   constructor(callback: VisualObserverCallback) {
-    this.#callback = callback.bind(this);
+    this.#callback = callback;
   }
 
   #elements = new Map<Element, VisualObserverElement>();
@@ -32,16 +33,14 @@ export class VisualObserver {
   #resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
     const visualEntries: VisualObserverEntry[] = [];
 
-    const root = entries.find((entry) => entry.target === this.#root);
-
     // Any time the root element resizes we need to refresh all the observed elements.
-    if (root !== undefined) {
+    if (entries.some((entry) => entry.target === root)) {
       this.#elements.forEach((_, target) => {
+        // Why force a refresh? we really just need to reset the IntersectionObserver?
         visualEntries.push(this.#refreshElement(target));
       });
     } else {
       for (const entry of entries) {
-        if (entry.target === this.#root) continue;
         visualEntries.push(this.#refreshElement(entry.target, entry.contentRect));
       }
     }
@@ -50,12 +49,14 @@ export class VisualObserver {
   });
 
   // We should be guaranteed that each `IntersectionObserver` only observes one element.
-  #onIntersection = ([entry]: IntersectionObserverEntry[]) => {
-    let el = this.#elements.get(entry.target);
+  #onIntersection = ([
+    { target, intersectionRatio, boundingClientRect },
+  ]: IntersectionObserverEntry[]) => {
+    let el = this.#elements.get(target);
 
     if (el === undefined) return;
 
-    if (entry.intersectionRatio !== el.threshold) {
+    if (intersectionRatio !== el.threshold) {
       // It's possible for the watched element to not be at perfect 1.0 visibility when we create
       // the IntersectionObserver. This has a couple of causes:
       //   - elements being on partial pixels
@@ -68,12 +69,12 @@ export class VisualObserver {
 
       if (el.isFirstUpdate) {
         el.threshold =
-          entry.intersectionRatio === 0.0
+          intersectionRatio === 0.0
             ? 0.0000001 // just needs to be non-zero
-            : entry.intersectionRatio;
+            : intersectionRatio;
       }
 
-      this.#callback([this.#refreshElement(entry.target, entry.boundingClientRect)], this);
+      this.#callback([this.#refreshElement(target, boundingClientRect)], this);
     }
 
     el.isFirstUpdate = false;
@@ -83,30 +84,29 @@ export class VisualObserver {
     target: Element,
     contentRect: DOMRectReadOnly = target.getBoundingClientRect()
   ): VisualObserverEntry {
-    let el = this.#elements.get(target);
-
-    if (el === undefined) throw new Error('Cant refresh target with no record.');
+    // Assume el exists
+    let el = this.#elements.get(target)!;
 
     el.io?.disconnect();
 
+    const { left, top, height, width } = contentRect;
     // Don't create a IntersectionObserver until the target has a size.
-    if (contentRect.width === 0 && contentRect.height === 0) {
+    if (width === 0 && height === 0) {
       return {
         target,
         contentRect,
         isAppearing: false,
       };
     }
-    const root = this.#root;
-    // This was previously document.scrollingElement?
-    const x = contentRect.left + root.scrollLeft;
-    const y = contentRect.top + root.scrollTop;
 
-    const insetLeft = Math.floor(x);
-    const insetTop = Math.floor(y);
-    const insetRight = Math.floor(root.offsetWidth - (x + contentRect.width));
-    const insetBottom = Math.floor(root.offsetHeight - (y + contentRect.height));
-    const rootMargin = `${-insetTop}px ${-insetRight}px ${-insetBottom}px ${-insetLeft}px`;
+    // This was previously document.scrollingElement?
+    const x = left + root.scrollLeft;
+    const y = top + root.scrollTop;
+
+    // `${-insetTop}px ${-insetRight}px ${-insetBottom}px ${-insetLeft}px`;
+    const rootMargin = `${-floor(y)}px ${-floor(root.offsetWidth - (x + width))}px ${-floor(
+      root.offsetHeight - (y + height)
+    )}px ${-floor(x)}px`;
 
     // Reset the threshold and isFirstUpdate before creating a new Intersection Observer.
     const { threshold } = el;
@@ -126,8 +126,8 @@ export class VisualObserver {
       contentRect: DOMRectReadOnly.fromRect({
         x,
         y,
-        width: contentRect.width,
-        height: contentRect.height,
+        width,
+        height,
       }),
       isAppearing: true,
     };
@@ -143,7 +143,7 @@ export class VisualObserver {
     if (this.#elements.has(target)) return;
 
     if (this.#elements.size === 0) {
-      this.#resizeObserver.observe(this.#root);
+      this.#resizeObserver.observe(root);
     }
 
     this.#elements.set(target, {
