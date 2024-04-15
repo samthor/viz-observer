@@ -52,7 +52,7 @@ export class VisualObserver {
   #onIntersection = ([
     { target, intersectionRatio, boundingClientRect },
   ]: IntersectionObserverEntry[]) => {
-    let el = this.#elements.get(target);
+    const el = this.#elements.get(target);
 
     if (el === undefined) return;
 
