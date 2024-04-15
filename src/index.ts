@@ -85,7 +85,7 @@ export class VisualObserver {
     contentRect: DOMRectReadOnly = target.getBoundingClientRect()
   ): VisualObserverEntry {
     // Assume el exists
-    let el = this.#elements.get(target)!;
+    const el = this.#elements.get(target)!;
 
     el.io?.disconnect();
 
