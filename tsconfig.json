@@ -1,24 +1,26 @@
 {
   "compilerOptions": {
-    "checkJs": true,
-    "noEmit": true,
-
-    // if you'd like to warn if you're using modern features, change these
-    // both to e.g., "es2017"
-    "module": "esnext",
-    "target": "esnext",
-
-    // configure as you like: these are my preferred defaults!
-    "strict": true,
+    "target": "ESNext",
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
 
-    // "strict" implies this, but you'll want to enable it when you're
-    // ready: it's a huge reason your project will start complaining
-    "noImplicitAny": false,
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "experimentalDecorators": true,
+
+    /* Transpile */
+    "outDir": "dist"
   },
-  "include": [
-    // include the JS files you'd like to check here
-    "*.js",
-  ],
+  "include": ["src"]
 }
