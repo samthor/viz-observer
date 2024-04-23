@@ -2,7 +2,7 @@
   "name": "viz-observer",
   "description": "Notifies your code on DOM node move or resize",
   "author": "Sam Thorogood <sam.thorogood@gmail.com>",
-  "version": "1.0.0",
+  "version": "2.0.0-beta.0",
   "license": "Apache-2.0",
   "repository": "git@github.com:samthor/viz-observer.git",
   "type": "module",
@@ -10,10 +10,11 @@
   "module": "./dist/index.js",
   "exports": {
     ".": {
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
-  "types": "dist/index.d.ts",
+  "types": "./dist/index.d.ts",
   "keywords": [
     "javascript",
     "dom"
@@ -22,7 +23,7 @@
     "dev": "vite demo",
     "build": "tsc",
     "build:demo": "vite build demo",
-    "publish": "npm run build && npm publish"
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "typescript": "^5.4.5",
