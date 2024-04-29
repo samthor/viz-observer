@@ -21,6 +21,9 @@ export class VisualObserver {
   #root = document.documentElement;
   #rootRect = this.#root.getBoundingClientRect();
 
+  #entries: VisualObserverEntry[] = [];
+  #rafId: number | null = null;
+
   #callback: VisualObserverCallback;
 
   constructor(callback: VisualObserverCallback) {
@@ -30,8 +33,6 @@ export class VisualObserver {
   #elements = new Map<Element, VisualObserverElement>();
 
   #resizeObserver = new ResizeObserver((entries) => {
-    const visualEntries: VisualObserverEntry[] = [];
-
     const rootEntry = entries.find((entry) => entry.target === this.#root);
     // Any time the root element resizes we need to refresh all the observed elements.
     if (rootEntry !== undefined) {
@@ -39,16 +40,30 @@ export class VisualObserver {
 
       this.#elements.forEach((_, target) => {
         // Why force a refresh? we really just need to reset the IntersectionObserver?
-        visualEntries.push(this.#refreshElement(target));
+        this.#appendEntry(this.#refreshElement(target));
       });
     } else {
       for (const entry of entries) {
-        visualEntries.push(this.#refreshElement(entry.target));
+        this.#appendEntry(this.#refreshElement(entry.target));
       }
     }
-
-    this.#callback(visualEntries, this);
   });
+
+  #appendEntry(entry: VisualObserverEntry) {
+    // deduplicate the same target
+    this.#entries.push(entry);
+
+    if (!this.#rafId === null) {
+      this.#rafId = requestAnimationFrame(this.#flush);
+    }
+  }
+
+  #flush = () => {
+    const entries = this.#entries;
+    this.#entries = [];
+    this.#rafId = null;
+    this.#callback(entries, this);
+  };
 
   // We should be guaranteed that each `IntersectionObserver` only observes one element.
   #onIntersection = ([
@@ -76,7 +91,7 @@ export class VisualObserver {
             : intersectionRatio;
       }
 
-      this.#callback([this.#refreshElement(target, boundingClientRect)], this);
+      this.#appendEntry(this.#refreshElement(target, boundingClientRect));
     }
 
     el.isFirstUpdate = false;
@@ -159,6 +174,16 @@ export class VisualObserver {
 
     // The resize observer will be called immediately, so we don't have to manually refresh.
     this.#resizeObserver.observe(target);
+  }
+
+  takeRecords(): VisualObserverEntry[] {
+    if (this.#rafId === null) return [];
+
+    const entries = this.#entries;
+    this.#entries = [];
+    cancelAnimationFrame(this.#rafId);
+    this.#rafId = null;
+    return entries;
   }
 
   unobserve(target: Element): void {
