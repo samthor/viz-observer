@@ -22,7 +22,7 @@ export class VisualObserver {
   #rootRect = this.#root.getBoundingClientRect();
 
   #entries: VisualObserverEntry[] = [];
-  #rafId: number | null = null;
+  #rafId = 0;
 
   #callback: VisualObserverCallback;
 
@@ -53,7 +53,7 @@ export class VisualObserver {
     // deduplicate the same target
     this.#entries.push(entry);
 
-    if (!this.#rafId === null) {
+    if (this.#rafId === 0) {
       this.#rafId = requestAnimationFrame(this.#flush);
     }
   }
@@ -61,7 +61,7 @@ export class VisualObserver {
   #flush = () => {
     const entries = this.#entries;
     this.#entries = [];
-    this.#rafId = null;
+    this.#rafId = 0;
     this.#callback(entries, this);
   };
 
@@ -177,12 +177,10 @@ export class VisualObserver {
   }
 
   takeRecords(): VisualObserverEntry[] {
-    if (this.#rafId === null) return [];
-
     const entries = this.#entries;
     this.#entries = [];
     cancelAnimationFrame(this.#rafId);
-    this.#rafId = null;
+    this.#rafId = 0;
     return entries;
   }
 
