@@ -14,14 +14,16 @@ interface VisualObserverElement {
   isFirstUpdate: boolean;
 }
 
-const floor = Math.floor;
-
-const root = document.documentElement;
-
 /**
  * Create an observer that notifies when an element is resized, moved, or added/removed from the DOM.
  */
 export class VisualObserver {
+  #root = document.documentElement;
+  #rootRect = this.#root.getBoundingClientRect();
+
+  #entries: VisualObserverEntry[] = [];
+  #rafId = 0;
+
   #callback: VisualObserverCallback;
 
   constructor(callback: VisualObserverCallback) {
@@ -30,23 +32,38 @@ export class VisualObserver {
 
   #elements = new Map<Element, VisualObserverElement>();
 
-  #resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
-    const visualEntries: VisualObserverEntry[] = [];
-
+  #resizeObserver = new ResizeObserver((entries) => {
+    const rootEntry = entries.find((entry) => entry.target === this.#root);
     // Any time the root element resizes we need to refresh all the observed elements.
-    if (entries.some((entry) => entry.target === root)) {
+    if (rootEntry !== undefined) {
+      this.#rootRect = rootEntry.contentRect;
+
       this.#elements.forEach((_, target) => {
         // Why force a refresh? we really just need to reset the IntersectionObserver?
-        visualEntries.push(this.#refreshElement(target));
+        this.#appendEntry(this.#refreshElement(target));
       });
     } else {
       for (const entry of entries) {
-        visualEntries.push(this.#refreshElement(entry.target, entry.contentRect));
+        this.#appendEntry(this.#refreshElement(entry.target));
       }
     }
-
-    this.#callback(visualEntries, this);
   });
+
+  #appendEntry(entry: VisualObserverEntry) {
+    // deduplicate the same target
+    this.#entries.push(entry);
+
+    if (this.#rafId === 0) {
+      this.#rafId = requestAnimationFrame(this.#flush);
+    }
+  }
+
+  #flush = () => {
+    const entries = this.#entries;
+    this.#entries = [];
+    this.#rafId = 0;
+    this.#callback(entries, this);
+  };
 
   // We should be guaranteed that each `IntersectionObserver` only observes one element.
   #onIntersection = ([
@@ -74,7 +91,7 @@ export class VisualObserver {
             : intersectionRatio;
       }
 
-      this.#callback([this.#refreshElement(target, boundingClientRect)], this);
+      this.#appendEntry(this.#refreshElement(target, boundingClientRect));
     }
 
     el.isFirstUpdate = false;
@@ -88,6 +105,7 @@ export class VisualObserver {
     const el = this.#elements.get(target)!;
 
     el.io?.disconnect();
+    el.io = null;
 
     const { left, top, height, width } = contentRect;
     // Don't create a IntersectionObserver until the target has a size.
@@ -99,13 +117,14 @@ export class VisualObserver {
       };
     }
 
-    // This was previously document.scrollingElement?
-    const x = left + root.scrollLeft;
-    const y = top + root.scrollTop;
+    // The biggest bottleneck Im seeing is accessing these `root` properties
+    const x = left + this.#root.scrollLeft;
+    const y = top + this.#root.scrollTop;
 
+    const floor = Math.floor;
     // `${-insetTop}px ${-insetRight}px ${-insetBottom}px ${-insetLeft}px`;
-    const rootMargin = `${-floor(y)}px ${-floor(root.offsetWidth - (x + width))}px ${-floor(
-      root.offsetHeight - (y + height)
+    const rootMargin = `${-floor(y)}px ${-floor(this.#rootRect.width - (x + width))}px ${-floor(
+      this.#rootRect.height - (y + height)
     )}px ${-floor(x)}px`;
 
     // Reset the threshold and isFirstUpdate before creating a new Intersection Observer.
@@ -114,7 +133,7 @@ export class VisualObserver {
     el.isFirstUpdate = true;
 
     el.io = new IntersectionObserver(this.#onIntersection, {
-      root,
+      root: this.#root,
       rootMargin,
       threshold,
     });
@@ -143,7 +162,8 @@ export class VisualObserver {
     if (this.#elements.has(target)) return;
 
     if (this.#elements.size === 0) {
-      this.#resizeObserver.observe(root);
+      // Note that this will also kick of the resize observer and currently refreshes all elements
+      this.#resizeObserver.observe(this.#root);
     }
 
     this.#elements.set(target, {
@@ -156,6 +176,14 @@ export class VisualObserver {
     this.#resizeObserver.observe(target);
   }
 
+  takeRecords(): VisualObserverEntry[] {
+    const entries = this.#entries;
+    this.#entries = [];
+    cancelAnimationFrame(this.#rafId);
+    this.#rafId = 0;
+    return entries;
+  }
+
   unobserve(target: Element): void {
     const el = this.#elements.get(target);
 
@@ -164,6 +192,7 @@ export class VisualObserver {
     this.#resizeObserver.unobserve(target);
 
     el.io?.disconnect();
+    el.io = null;
 
     this.#elements.delete(target);
 
